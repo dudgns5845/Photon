@@ -13,9 +13,16 @@ public class LobbyManager : MonoBehaviourPunCallbacks
     public Button btnCreateRoom;
     public Button btnJoinRoom;
 
+    private void Awake()
+    {
+        Screen.SetResolution(800, 800, false);
+    }
+
     private void Start()
     {
         UISetting();
+        if (PhotonNetwork.IsConnected)
+            PhotonNetwork.JoinLobby();
     }
 
     void UISetting()
@@ -90,6 +97,7 @@ public class LobbyManager : MonoBehaviourPunCallbacks
     {
         //  base.OnJoinedRoom();
         print(System.Reflection.MethodBase.GetCurrentMethod().Name);
+        PhotonNetwork.LoadLevel("SceneGameRoom");
     }
 
     //룸 접속 실패시 호출
@@ -104,10 +112,10 @@ public class LobbyManager : MonoBehaviourPunCallbacks
     //해당 로비에 방 목록의 변경 사항이 있으면 호출(추가,삭제,참가)
     public override void OnRoomListUpdate(List<RoomInfo> roomList)
     {
+        print("OnRoomListUpdate 호출");
         base.OnRoomListUpdate(roomList);
         print(System.Reflection.MethodBase.GetCurrentMethod().Name);
 
-        print("업데이트 호출");
         //룸리스트 UI 삭제
         DeleteRoomListUI();
         //룸Cache를 갱신
@@ -130,17 +138,31 @@ public class LobbyManager : MonoBehaviourPunCallbacks
 
     void CreateRoomListUI()
     {
-        foreach (RoomInfo info in cacheRoom.Values)
+        //foreach (var info in cacheRoom)
+        //{
+        //    GameObject room = Instantiate(BTN_RoomInfo);
+        //    room.GetComponentInChildren<Text>().text = info.Key;
+        //    room.transform.SetParent(roomlistContent);
+        //}
+        var e = cacheRoom.GetEnumerator();
+        while (e.MoveNext())
         {
             GameObject room = Instantiate(BTN_RoomInfo);
+            room.GetComponentInChildren<Text>().text = e.Current.Key;
             room.transform.SetParent(roomlistContent);
+            room.GetComponent<RoomInfoButton>().SetInfo(e.Current.Value.Name, e.Current.Value.PlayerCount, e.Current.Value.MaxPlayers);
         }
+
     }
 
 
     //룸 리스트가 갱신될때마다 ui업데이트
     void UpdateCacheRoom(List<RoomInfo> roomList)
     {
+        if (cacheRoom == null)
+        {
+            cacheRoom = new Dictionary<string, RoomInfo>();
+        }
         //1.roomList를 순차적으로 돌면서
         for (int i = 0; i < roomList.Count; i++)
         {
@@ -152,11 +174,17 @@ public class LobbyManager : MonoBehaviourPunCallbacks
                 if (roomList[i].RemovedFromList)
                 {
                     cacheRoom.Remove(roomList[i].Name);
-                    continue;
+                }
+                else
+                {
+                    cacheRoom[roomList[i].Name] = roomList[i];
                 }
             }
-            //4. 그렇지 않으면 roomInfo를 cacheRoom에 추가 또는 변경 한다
-            cacheRoom.Add(roomList[i].Name, roomList[i]);
+            else
+            {
+                //4. 그렇지 않으면 roomInfo를 cacheRoom에 추가 또는 변경 한다
+                cacheRoom.Add(roomList[i].Name, roomList[i]);
+            }
         }
     }
 }
